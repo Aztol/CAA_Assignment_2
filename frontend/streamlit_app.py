@@ -82,32 +82,32 @@ def view_recommendations():
     if 'liked_movies' in st.session_state and st.session_state.liked_movies:
         recommendations = fetch_recommendations(st.session_state.liked_movies)
         if not recommendations.empty:
-            movie_df = fetch_movies()
+            #movie_df = fetch_movies()
             st.write(recommendations)
-            for movie in recommendations['movieId']:
-                movie_details = movie_df[movie_df['movieId'] == movie]
-                #st.write(movie_details)
-                if not movie_details.empty:
-                    tmdId = movie_details['tmdbId']
-                    details = fetch_movie_details(tmdId)
-                    if details:
-                        if details.get('poster'):  # Checks if 'poster' key exists and is not empty
-                            st.image(details['poster'], width=200)
-                        else:
-                            st.write("No poster available")
-                        st.write(f"**Plot:** {details['plot']}")
-                        st.write(f"**Cast:** {', '.join(details['cast'])}")
-                    st.write("---")
-                else:
-                    st.write(f"No movie details found for movieId: {movie}")
-                if details:
-                    if details.get('poster'):  # Checks if 'poster' key exists and is not empty
-                        st.image(details['poster'], width=200)
-                    else:
-                        st.write("No poster available")
-                    st.write(f"**Plot:** {details['plot']}")
-                    st.write(f"**Cast:** {', '.join(details['cast'])}")
-                st.write("---")
+            # for movie in recommendations['movieId']:
+            #     movie_details = movie_df[movie_df['movieId'] == movie]
+            #     st.write(movie_details)
+            #     if not movie_details.empty:
+            #         tmdId = movie_details['tmdbId']
+            #         details = fetch_movie_details(tmdId)
+            #         if details:
+            #             if details.get('poster'):  # Checks if 'poster' key exists and is not empty
+            #                 st.image(details['poster'], width=200)
+            #             else:
+            #                 st.write("No poster available")
+            #             st.write(f"**Plot:** {details['plot']}")
+            #             st.write(f"**Cast:** {', '.join(details['cast'])}")
+            #         st.write("---")
+            #     else:
+            #         st.write(f"No movie details found for movieId: {movie}")
+            #     if details:
+            #         if details.get('poster'):  # Checks if 'poster' key exists and is not empty
+            #             st.image(details['poster'], width=200)
+            #         else:
+            #             st.write("No poster available")
+            #         st.write(f"**Plot:** {details['plot']}")
+            #         st.write(f"**Cast:** {', '.join(details['cast'])}")
+            #     st.write("---")
         else:
             st.write("No recommendations to show.")
     else:

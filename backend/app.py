@@ -14,48 +14,96 @@ INDEX_NAME = 'caa-assignment-movies'
 
 
 app = Flask(__name__)
-
-# Load your Google Cloud credentials
-credentials = service_account.Credentials.from_service_account_file(r'C:\Users\Laurent Sierro\Documents\Clef_Gcloud\bamboo-creek-415115-6445343d2370.json')
-
-# Initialize a BigQuery client
+credentials = service_account.Credentials.from_service_account_file('bamboo-creek-415115-6445343d2370.json')
 client = bigquery.Client(credentials=credentials, project=credentials.project_id)
+# Load your Google Cloud credentials
+#credentials = service_account.Credentials.from_service_account_file(r'C:\Users\Laurent Sierro\Documents\Clef_Gcloud\bamboo-creek-415115-6445343d2370.json')
+#credentials = service_account.Credentials.from_service_account_file('bamboo-creek-415115-6445343d2370.json')
+# Initialize a BigQuery client
+#client = bigquery.Client(credentials=credentials, project=credentials.project_id)
 
 #algorithm to calculate similarity between cold start user and existing users
-def calculate_similarity(user_movie_preferences, recommendations_df):
-
-    def calculate_similarity_and_weighted_scores(row):
-
-        shared_movies = set(row['top_5_prediction']).intersection(user_movie_preferences)
-        similarity_number = len(shared_movies)
-        score_weighted = sum([(5 - row['top_5_prediction'].index(movie)) if movie in shared_movies else 0 for movie in row['top_5_prediction']])
-        
-        return pd.Series([similarity_number, score_weighted], index=['similarity_number', 'score_weighted'])
-
-    recommendations_df[['similarity_number', 'score_weighted']] = recommendations_df.apply(calculate_similarity_and_weighted_scores, axis=1)
+def get_recommendation(liked_movies, client):
+    top_3_user_id = []
+    similarities_query = """
+    SELECT userId, COUNT(movieId) AS common_likes
+    FROM `bamboo-creek-415115.recommender.ml-small-ratings`
+    WHERE movieId IN UNNEST(@liked_movies)
+    GROUP BY userId
+    ORDER BY common_likes DESC
+    LIMIT 3
+    """
+    query_params = [
+        bigquery.ArrayQueryParameter('liked_movies', 'INT64', liked_movies),
+    ]
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=query_params
+    )
+    query_job = client.query(similarities_query, job_config=job_config)
     
-    ordered_recommendations = recommendations_df.sort_values(by=['similarity_number', 'score_weighted'], ascending=[False, False])
-
-
-
-    def generate_recommendations(ordered_recommendations, recommendations_df, user_movie_preferences, user_id):
-        # Filter similarity scores for the cold user
-        cold_user_similarity_scores = ordered_recommendations[ordered_recommendations['userId'] != user_id].head(3)
-
-        # Get the top recommended movies for the cold user
-        top_recommendations = recommendations_df[recommendations_df['userId'].isin(cold_user_similarity_scores['userId'])]['top_5_prediction'].explode().unique()
-
-        # Remove movies that the cold user has already liked
-        new_recommendations = [movie for movie in top_recommendations if movie not in user_movie_preferences]
-
-        # Create a DataFrame of new movie recommendations
-        recommendations_df = pd.DataFrame({'movieId': new_recommendations})
-
-        return recommendations_df
+    for row in query_job:
+        top_3_user_id.append(row.userId)
     
-    generated_recommendations = generate_recommendations(ordered_recommendations, recommendations_df, user_movie_preferences, 612)
+    # Step 3: Query the recommendation model (this part is pseudo-code, adjust based on your model API)
+    # Assume predict_recommendations is a function to query your recommendation model
+    predictions = predict_recommendations(client, liked_movies, top_3_user_id)
+    
+    # Step 4: Format and return the recommendations
+    recommendations = []
+    for prediction in predictions:
+        recommendations.append({
+            "movieId": prediction["movieId"],
+            "title": prediction["title"],
+            "rating": prediction["predicted_rating"]
+        })
+    
+    return recommendations
 
-    return generated_recommendations
+def predict_recommendations(client, liked_movies, top_3_user_id):
+    # First, construct a subquery for user IDs that BigQuery can treat as a relation
+    user_ids_values = ", ".join([f"({uid})" for uid in top_3_user_id])
+    user_ids_subquery = f"SELECT userId FROM UNNEST([{user_ids_values}]) as userId"
+    
+    # Then, construct the full query using this subquery
+    recommend_query = f"""
+    WITH recommendations AS (
+      SELECT
+        recommended_movie.movieId, 
+        movie.title AS title,
+        predicted_rating_im_confidence AS predicted_rating
+      FROM
+        ML.RECOMMEND(MODEL `bamboo-creek-415115.recommender.first_MF_model`,(
+                    SELECT userId, movieId,
+                    FROM bamboo-creek-415115.recommender.ratings                   
+                    WHERE userId IN UNNEST([{user_ids_values}]))) AS recommended_movie
+      JOIN
+        `bamboo-creek-415115.recommender.ml-small-movies` AS movie
+      ON
+        recommended_movie.movieId = movie.movieId
+      WHERE
+        recommended_movie.movieId NOT IN UNNEST(@liked_movies)
+      ORDER BY
+        predicted_rating DESC
+      LIMIT 10
+    )
+    SELECT * FROM recommendations
+    """
+    print(recommend_query)
+    query_params = [
+        bigquery.ArrayQueryParameter("liked_movies", "INT64", liked_movies),
+    ]
+    job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+    query_job = client.query(recommend_query, job_config=job_config)
+
+    predictions = []
+    for row in query_job:
+        predictions.append({
+            "movieId": row.movieId,
+            "title": row.title,
+            "predicted_rating": row.predicted_rating
+        })
+
+    return predictions
 
 def fetch_movie_details(movie_id, api_key):
     base_url = "https://api.themoviedb.org/3"
@@ -145,38 +193,15 @@ def search_movies():
     return jsonify([])
 
 @app.route('/recommend', methods=['POST'])
-def recommend_movies():
+def recommend():
     data = request.get_json()
-    cold_user_movies = data.get('liked_movies', [])
+    liked_movies = data.get('liked_movies', [])
+    if not liked_movies:
+        return jsonify({"error": "liked_movies is required"}), 400
+    return get_recommendation(liked_movies, client)
 
-    if not cold_user_movies:
-        # Handle the case where no movies are liked or data is not received
-        return jsonify({'error': 'No liked movies data received'}), 400
-    recommendation_query = """
-    SELECT * FROM
-    ML.RECOMMEND(MODEL `bamboo-creek-415115.recommender.first_MF_model`,
-    (
-    SELECT DISTINCT userId
-    FROM `bamboo-creek-415115.recommender.ml-small-ratings`
-    LIMIT 50))
-    """
-
-    # Run the recommendation query
-    recommendation_result = client.query(recommendation_query).to_dataframe()
-
-    # Group by 'userId' and then apply the nlargest method to get the top 5 for each group
-    top_5_per_user = recommendation_result.groupby('userId', group_keys=False).apply(lambda x: x.nlargest(5, 'predicted_rating_im_confidence'))
-
-
-    # Group by 'userId' and aggregate 'movieId' into a list for each user
-    top_5_movies_per_user = top_5_per_user.groupby('userId')['movieId'].apply(list).reset_index(name='top_5_prediction')
-
-    # Call the function
-    new_recommendations = calculate_similarity(cold_user_movies, top_5_movies_per_user)
-
-
-    
-    return new_recommendations.to_json()
+if __name__ == '__main__':
+    app.run(debug=True)
 
 
 
