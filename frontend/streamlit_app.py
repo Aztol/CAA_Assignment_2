@@ -82,36 +82,45 @@ def view_recommendations():
     if 'liked_movies' in st.session_state and st.session_state.liked_movies:
         recommendations = fetch_recommendations(st.session_state.liked_movies)
         if not recommendations.empty:
-            #movie_df = fetch_movies()
-            st.write(recommendations)
-            # for movie in recommendations['movieId']:
-            #     movie_details = movie_df[movie_df['movieId'] == movie]
-            #     st.write(movie_details)
-            #     if not movie_details.empty:
-            #         tmdId = movie_details['tmdbId']
-            #         details = fetch_movie_details(tmdId)
-            #         if details:
-            #             if details.get('poster'):  # Checks if 'poster' key exists and is not empty
-            #                 st.image(details['poster'], width=200)
-            #             else:
-            #                 st.write("No poster available")
-            #             st.write(f"**Plot:** {details['plot']}")
-            #             st.write(f"**Cast:** {', '.join(details['cast'])}")
-            #         st.write("---")
-            #     else:
-            #         st.write(f"No movie details found for movieId: {movie}")
-            #     if details:
-            #         if details.get('poster'):  # Checks if 'poster' key exists and is not empty
-            #             st.image(details['poster'], width=200)
-            #         else:
-            #             st.write("No poster available")
-            #         st.write(f"**Plot:** {details['plot']}")
-            #         st.write(f"**Cast:** {', '.join(details['cast'])}")
-            #     st.write("---")
-        else:
-            st.write("No recommendations to show.")
+            for movie in recommendations['movieId']:
+                details = fetch_movie_details(movie)
+                #st.write(details)
+                if details:
+                    # Adjusting the columns to give more space to text if necessary or based on content size
+                    col1_width = 2
+                    col2_width = 6
+                    col1, col2 = st.columns([col1_width, col2_width])
+
+                    with col1:
+                        # Set a conditional width for images if needed
+                        image_width = 180  # Adjusted to better fit within the column
+                        if details.get('poster'):
+                            st.image(details['poster'], width=image_width)
+                        else:
+                            st.write("No poster available")
+
+                    with col2:
+                        # Check for plot and display appropriately
+                        st.write(f"**Title:** {details['title']}")
+                        st.write(f"**Genres:** {', '.join(details['genres'])}")
+
+                        if details.get('plot'):
+                            st.write(f"**Plot:** {details['plot']}")
+                        else:
+                            st.write("No plot available")
+                        
+                        # Check for cast and display appropriately
+                        if details.get('cast'):
+                            st.write(f"**Cast:** {', '.join(details['cast'])}")
+                        else:
+                            st.write("No cast available")
+                    
+                    st.write("---")
+                else:
+                    pass
     else:
         st.write("Like some movies to see recommendations!")
+
 
 if __name__ == "__main__":
     main()

@@ -106,11 +106,34 @@ def predict_recommendations(client, liked_movies, top_3_user_id):
     return predictions
 
 def fetch_movie_details(movie_id, api_key):
-    base_url = "https://api.themoviedb.org/3"
-    movie_url = f"{base_url}/movie/{movie_id}?api_key={api_key}"
-    credits_url = f"{base_url}/movie/{movie_id}/credits?api_key={api_key}"
+ 
+    query = """
+    SELECT links.tmdbId, movies.title, movies.genres
+    FROM `bamboo-creek-415115.recommender.ml-small-links` links
+    JOIN `bamboo-creek-415115.recommender.ml-small-movies` movies
+    ON links.movieId = movies.movieId
+    WHERE links.movieId = @movie_id
+    """
+    query_params = [
+        bigquery.ScalarQueryParameter("movie_id", "INT64", movie_id),
+    ]
+    job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+    query_job = client.query(query, job_config=job_config)
 
-    # Fetch movie details
+    # Execute the query and get the result
+    result = query_job.result()
+
+    # Fetch the first row
+    row = list(result)[0]
+    tmdb_id = row.tmdbId
+    title = row.title
+    genres = row.genres.split('|')  # Assuming genres are stored as a pipe-separated string
+
+    base_url = "https://api.themoviedb.org/3"
+    movie_url = f"{base_url}/movie/{tmdb_id}?api_key={api_key}"
+    credits_url = f"{base_url}/movie/{tmdb_id}/credits?api_key={api_key}"
+
+    # Fetch movie details from TMDB API
     movie_response = requests.get(movie_url)
     movie_details = movie_response.json() if movie_response.status_code == 200 else {}
 
@@ -129,8 +152,11 @@ def fetch_movie_details(movie_id, api_key):
     return {
         'poster': poster_full_url,
         'plot': plot,
+        'title': title,
+        'genres': genres,
         'cast': cast
     }
+
 
 @app.route('/load_all_movies', methods=['GET'])
 def load_movies():
