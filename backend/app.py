@@ -14,13 +14,13 @@ INDEX_NAME = 'caa-assignment-movies'
 
 
 app = Flask(__name__)
-credentials = service_account.Credentials.from_service_account_file('bamboo-creek-415115-6445343d2370.json')
-client = bigquery.Client(credentials=credentials, project=credentials.project_id)
+
+
 # Load your Google Cloud credentials
-#credentials = service_account.Credentials.from_service_account_file(r'C:\Users\Laurent Sierro\Documents\Clef_Gcloud\bamboo-creek-415115-6445343d2370.json')
+credentials = service_account.Credentials.from_service_account_file(r'C:\Users\Laurent Sierro\Documents\Clef_Gcloud\bamboo-creek-415115-6445343d2370.json')
 #credentials = service_account.Credentials.from_service_account_file('bamboo-creek-415115-6445343d2370.json')
 # Initialize a BigQuery client
-#client = bigquery.Client(credentials=credentials, project=credentials.project_id)
+client = bigquery.Client(credentials=credentials, project=credentials.project_id)
 
 #algorithm to calculate similarity between cold start user and existing users
 def get_recommendation(liked_movies, client):
