@@ -83,9 +83,10 @@ def view_recommendations():
         recommendations = fetch_recommendations(st.session_state.liked_movies)
         if not recommendations.empty:
             movie_df = fetch_movies()
+            st.write(recommendations)
             for movie in recommendations['movieId']:
                 movie_details = movie_df[movie_df['movieId'] == movie]
-                st.write(movie_details)
+                #st.write(movie_details)
                 if not movie_details.empty:
                     tmdId = movie_details['tmdbId']
                     details = fetch_movie_details(tmdId)

@@ -28,7 +28,7 @@ def calculate_similarity(user_movie_preferences, recommendations_df):
 
         shared_movies = set(row['top_5_prediction']).intersection(user_movie_preferences)
         similarity_number = len(shared_movies)
-        score_weighted = sum([(5 - row['top_5_prediction'].index(movie)) for movie in shared_movies])
+        score_weighted = sum([(5 - row['top_5_prediction'].index(movie)) if movie in shared_movies else 0 for movie in row['top_5_prediction']])
         
         return pd.Series([similarity_number, score_weighted], index=['similarity_number', 'score_weighted'])
 
@@ -43,7 +43,7 @@ def calculate_similarity(user_movie_preferences, recommendations_df):
         cold_user_similarity_scores = ordered_recommendations[ordered_recommendations['userId'] != user_id].head(3)
 
         # Get the top recommended movies for the cold user
-        top_recommendations = cold_user_similarity_scores.head(1)['top_5_prediction'].values[0]
+        top_recommendations = recommendations_df[recommendations_df['userId'].isin(cold_user_similarity_scores['userId'])]['top_5_prediction'].explode().unique()
 
         # Remove movies that the cold user has already liked
         new_recommendations = [movie for movie in top_recommendations if movie not in user_movie_preferences]
@@ -103,7 +103,7 @@ def index():
 
 @app.route('/movie-details/<int:movie_id>', methods=['GET'])
 def movie_details(movie_id):
-    api_key = "a4e9b16805164cf6c06689a7bb8da071"
+    api_key = "b0864169651f3978f7da5639f393979c"
     details = fetch_movie_details(movie_id, api_key)
     return jsonify(details)
 
@@ -147,17 +147,18 @@ def search_movies():
 @app.route('/recommend', methods=['POST'])
 def recommend_movies():
     data = request.get_json()
-    cold_user_movies = data.get('liked_movies', "No data received")
+    cold_user_movies = data.get('liked_movies', [])
 
-    if cold_user_movies == "No data received":
-        return "No data received", 400
+    if not cold_user_movies:
+        # Handle the case where no movies are liked or data is not received
+        return jsonify({'error': 'No liked movies data received'}), 400
     recommendation_query = """
     SELECT * FROM
     ML.RECOMMEND(MODEL `bamboo-creek-415115.recommender.first_MF_model`,
     (
     SELECT DISTINCT userId
     FROM `bamboo-creek-415115.recommender.ml-small-ratings`
-    LIMIT 5))
+    LIMIT 50))
     """
 
     # Run the recommendation query
@@ -175,7 +176,7 @@ def recommend_movies():
 
 
     
-    return jsonify(new_recommendations.to_dict(orient='records'))
+    return new_recommendations.to_json()
 
 
 
