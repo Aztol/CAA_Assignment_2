@@ -1,0 +1,6 @@
+Flask
+google-cloud-bigquery
+google-auth
+elasticsearch
+pandas
+requests
