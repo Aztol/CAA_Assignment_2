@@ -207,7 +207,7 @@ def search_movies():
             "genres": hit['_source'].get('genres', 'Unknown'),  # Use .get() to handle missing fields
             "movieId": hit['_source']['movieId']
         } for hit in response['hits']['hits']]
-
+        print(results)
         return jsonify(results)
     
     return jsonify([])
