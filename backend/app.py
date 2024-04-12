@@ -168,8 +168,8 @@ def load_movies():
     # Execute the query and convert results to DataFrame
     query_job = client.query(query)
     movies_df = query_job.to_dataframe()
-
-    return movies_df.to_json()
+    movies_dict = movies_df.to_dict(orient='records')  # Converts the DataFrame to a list of dictionaries
+    return jsonify(movies_dict)
 
 @app.route('/')
 def index():
@@ -227,4 +227,4 @@ if __name__ == '__main__':
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=8080, debug=True)
