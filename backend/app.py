@@ -9,16 +9,16 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 URL_ENDPOINT =   "https://ee75f104e5a74aa484b8a41bc262cc5e.us-central1.gcp.cloud.es.io:443"
-API_KEY = "b0huRXhvNEI3TXF4SXc5Wl9oYmw6aFpuZkRkTDdScEtMOHA2X05jZEYtUQ=="
-INDEX_NAME = 'caa-assignment-movies'
+API_KEY_ELASTIC = "b0huRXhvNEI3TXF4SXc5Wl9oYmw6aFpuZkRkTDdScEtMOHA2X05jZEYtUQ=="
+
 
 
 app = Flask(__name__)
 
 
 # Load your Google Cloud credentials
-credentials = service_account.Credentials.from_service_account_file(r'C:\Users\Laurent Sierro\Documents\Clef_Gcloud\bamboo-creek-415115-6445343d2370.json')
-#credentials = service_account.Credentials.from_service_account_file('bamboo-creek-415115-6445343d2370.json')
+#credentials = service_account.Credentials.from_service_account_file(r'C:\Users\Laurent Sierro\Documents\Clef_Gcloud\bamboo-creek-415115-6445343d2370.json')
+credentials = service_account.Credentials.from_service_account_file('bamboo-creek-415115-6445343d2370.json')
 # Initialize a BigQuery client
 client = bigquery.Client(credentials=credentials, project=credentials.project_id)
 
@@ -186,15 +186,9 @@ def search_movies():
     query = request.args.get('q', '')  # Get the search query from request parameters
 
     if query:
-        # Initiate the connection to the index
-        client = Elasticsearch(
-            URL_ENDPOINT,
-            api_key=API_KEY
-        )
-
-        # Perform search query
+        client = Elasticsearch(URL_ENDPOINT, api_key=API_KEY_ELASTIC)
         response = client.search(
-            index=INDEX_NAME, 
+            index='caa-assignment-movies', 
             body={
                 "query": {
                     "match_phrase_prefix": {

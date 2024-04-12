@@ -55,27 +55,44 @@ def main():
 
 def search_and_like_movies():
     st.subheader("Search and Like Movies")
+    all_movies = fetch_movies()
     if 'liked_movies' not in st.session_state:
         st.session_state.liked_movies = []
-    search_query = st.text_input('Search')
-    if search_query:
-        autocomplete_df = autocomplete_search(search_query)
-        if not autocomplete_df.empty:
-            for index, row in autocomplete_df.iterrows():
-                col1, col2 = st.columns([4,1])
-                with col1:
-                    with st.expander(row['title']):
-                        st.write(f"Genre: {', '.join(row['genres'].split('|'))}")
-                        st.write(f"Movie ID: {row['movieId']}")
-                with col2:
-                    if st.button('Like', key=f"like_{index}"):
-                        st.session_state.liked_movies.append(row['movieId'])
-                        st.success(f"You liked: {row['title']}")
+    col_search, col_liked = st.columns([2, 1])
+    with col_search:
+        search_query = st.text_input('Search')
+        if search_query:
+            autocomplete_df = autocomplete_search(search_query)
+            if not autocomplete_df.empty:
+                for index, row in autocomplete_df.iterrows():
+                    col1, col2 = st.columns([4,1])
+                    with col1:
+                        with st.expander(row['title']):
+                            st.write(f"Genre: {', '.join(row['genres'].split('|'))}")
+                    with col2:
+                        if st.button('Like', key=f"like_{index}"):
+                            st.session_state.liked_movies.append(row['movieId'])
+            else:
+                st.write("No results found.")
         else:
-            st.write("No results found.")
-    else:
-        st.write("Please enter a search query to find movies.")
-    st.write("Liked Movies:", st.session_state.liked_movies)
+            st.write("Please enter a search query to find movies.")
+    with col_liked:
+        liked_movie_titles = all_movies[all_movies['movieId'].isin(st.session_state.liked_movies)]['title']
+        st.write("Liked Movies:")
+        to_remove = None
+        for title in liked_movie_titles:
+            col3, col4 = st.columns([4, 1])
+            with col3:
+                st.write(title)
+            with col4:
+                if st.button('X', key=f"remove_{title}"):
+                    to_remove = all_movies[all_movies['title'] == title]['movieId'].values[0]
+
+        # Check outside the loop to see if a movie needs to be removed
+        if to_remove is not None:
+            st.session_state.liked_movies.remove(to_remove)
+            st.experimental_rerun()  # This will rerun the script and update the UI immediately
+
 
 def view_recommendations():
     st.subheader("Your Recommendations")
