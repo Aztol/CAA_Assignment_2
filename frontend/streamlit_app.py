@@ -2,13 +2,14 @@ import streamlit as st
 import requests
 import pandas as pd
 import logging
+import os
 
 logging.basicConfig(level=logging.DEBUG)
-
+port = os.getenv("PORT", 8080)
 # Function to cache and fetch movie details from the backend
 @st.cache_data
 def autocomplete_search(search_query):
-    backend_url = f'http://127.0.0.1:5000/search?q={search_query}'
+    backend_url = f'https://backend-5cmlqfzdka-oa.a.run.app/search?q={search_query}'
     response = requests.get(backend_url)
     if response.status_code == 200:
         return pd.DataFrame(response.json())
@@ -19,7 +20,7 @@ def autocomplete_search(search_query):
 @st.cache_data
 def fetch_movie_details(movie_id):
     movie_id = str(movie_id).strip().split()[0]
-    backend_url = f'http://127.0.0.1:5000/movie-details/{movie_id}'
+    backend_url = f'https://backend-5cmlqfzdka-oa.a.run.app/movie-details/{movie_id}'
     response = requests.get(backend_url, params={'movie_id': movie_id})
     if response.status_code == 200:
         return response.json()
@@ -29,14 +30,14 @@ def fetch_movie_details(movie_id):
 
 @st.cache_data
 def fetch_movies():
-    backend_url = f'http://127.0.0.1:5000/load_all_movies'
+    backend_url = f'https://backend-5cmlqfzdka-oa.a.run.app/load_all_movies'
     response = requests.get(backend_url)
     return pd.DataFrame(response.json()) if response.status_code == 200 else st.error('Failed to fetch movies from the backend.')
 
 # Function to fetch recommendations based on liked movies
 @st.cache_data
 def fetch_recommendations(liked_movies):
-    backend_url = f'http://127.0.0.1:5000/recommend'
+    backend_url = f'https://backend-5cmlqfzdka-oa.a.run.app/recommend'
     response = requests.post(backend_url, json={'liked_movies': liked_movies})
     if response.status_code == 200:
         return pd.DataFrame(response.json())
